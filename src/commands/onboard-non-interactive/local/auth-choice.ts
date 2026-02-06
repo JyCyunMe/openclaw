@@ -22,7 +22,10 @@ import {
   applyVeniceConfig,
   applyVercelAiGatewayConfig,
   applyXiaomiConfig,
+  applyZaiCodingConfig,
   applyZaiConfig,
+  applyZhipuCodingConfig,
+  applyZhipuConfig,
   setAnthropicApiKey,
   setCloudflareAiGatewayConfig,
   setGeminiApiKey,
@@ -36,6 +39,9 @@ import {
   setVercelAiGatewayApiKey,
   setXiaomiApiKey,
   setZaiApiKey,
+  setZaiCodingApiKey,
+  setZhipuApiKey,
+  setZhipuCodingApiKey,
 } from "../../onboard-auth.js";
 import { resolveNonInteractiveApiKey } from "../api-keys.js";
 
@@ -192,6 +198,75 @@ export async function applyNonInteractiveAuthChoice(params: {
       mode: "api_key",
     });
     return applyZaiConfig(nextConfig);
+  }
+
+  if (authChoice === "zai-coding-api-key") {
+    const resolved = await resolveNonInteractiveApiKey({
+      provider: "zai-coding",
+      cfg: baseConfig,
+      flagValue: opts.zaiCodingApiKey ?? opts.zaiApiKey,
+      flagName: "--zai-coding-api-key",
+      envVar: "ZAI_CODING_API_KEY (or ZAI_API_KEY)",
+      runtime,
+    });
+    if (!resolved) {
+      return null;
+    }
+    if (resolved.source !== "profile") {
+      await setZaiCodingApiKey(resolved.key);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "zai-coding:default",
+      provider: "zai-coding",
+      mode: "api_key",
+    });
+    return applyZaiCodingConfig(nextConfig);
+  }
+
+  if (authChoice === "zhipu-api-key") {
+    const resolved = await resolveNonInteractiveApiKey({
+      provider: "zhipu",
+      cfg: baseConfig,
+      flagValue: opts.zhipuApiKey,
+      flagName: "--zhipu-api-key",
+      envVar: "ZHIPU_API_KEY",
+      runtime,
+    });
+    if (!resolved) {
+      return null;
+    }
+    if (resolved.source !== "profile") {
+      await setZhipuApiKey(resolved.key);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "zhipu:default",
+      provider: "zhipu",
+      mode: "api_key",
+    });
+    return applyZhipuConfig(nextConfig);
+  }
+
+  if (authChoice === "zhipu-coding-api-key") {
+    const resolved = await resolveNonInteractiveApiKey({
+      provider: "zhipu-coding",
+      cfg: baseConfig,
+      flagValue: opts.zhipuCodingApiKey ?? opts.zhipuApiKey,
+      flagName: "--zhipu-coding-api-key",
+      envVar: "ZHIPU_CODING_API_KEY (or ZHIPU_API_KEY)",
+      runtime,
+    });
+    if (!resolved) {
+      return null;
+    }
+    if (resolved.source !== "profile") {
+      await setZhipuCodingApiKey(resolved.key);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "zhipu-coding:default",
+      provider: "zhipu-coding",
+      mode: "api_key",
+    });
+    return applyZhipuCodingConfig(nextConfig);
   }
 
   if (authChoice === "xiaomi-api-key") {
@@ -497,6 +572,10 @@ export async function applyNonInteractiveAuthChoice(params: {
     authChoice === "chutes" ||
     authChoice === "openai-codex" ||
     authChoice === "qwen-portal" ||
+    authChoice === "github-copilot" ||
+    authChoice === "google-gemini-cli" ||
+    authChoice === "google-antigravity" ||
+    authChoice === "copilot-proxy" ||
     authChoice === "minimax-portal"
   ) {
     runtime.error("OAuth requires interactive mode.");
