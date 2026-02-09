@@ -31,6 +31,8 @@ export {
   applyZhipuCodingProviderConfig,
   applyZhipuConfig,
   applyZhipuProviderConfig,
+  applyXaiConfig,
+  applyXaiProviderConfig,
 } from "./onboard-auth.config-core.js";
 export {
   applyMinimaxApiConfig,
@@ -64,6 +66,7 @@ export {
   setZaiCodingApiKey,
   setZhipuApiKey,
   setZhipuCodingApiKey,
+  setXaiApiKey,
   writeOAuthCredentials,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
   XIAOMI_DEFAULT_MODEL_REF,
@@ -71,6 +74,7 @@ export {
   ZAI_DEFAULT_MODEL_REF,
   ZHIPU_CODING_DEFAULT_MODEL_REF,
   ZHIPU_DEFAULT_MODEL_REF,
+  XAI_DEFAULT_MODEL_REF,
 } from "./onboard-auth.credentials.js";
 export {
   buildMinimaxApiModelDefinition,
