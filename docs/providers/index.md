@@ -43,13 +43,14 @@ See [Venice AI](/providers/venice).
 - [Cloudflare AI Gateway](/providers/cloudflare-ai-gateway)
 - [Moonshot AI (Kimi + Kimi Coding)](/providers/moonshot)
 - [OpenCode Zen](/providers/opencode)
-- [Amazon Bedrock](/bedrock)
+- [Amazon Bedrock](/providers/bedrock)
 - [Z.AI / Zhipu AI (GLM models)](/providers/zai) - International + China, pay-as-you-go + Coding Plan
 - [GLM models](/providers/glm) - Model family overview
 - [Xiaomi](/providers/xiaomi)
 - [MiniMax](/providers/minimax)
 - [Venice (Venice AI, privacy-focused)](/providers/venice)
 - [Ollama (local models)](/providers/ollama)
+- [Qianfan](/providers/qianfan)
 
 ## Transcription providers
 
