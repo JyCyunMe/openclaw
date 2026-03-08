@@ -1426,7 +1426,7 @@ async function runWebSearch(params: {
   if (params.provider === "perplexity") {
     const results = await runPerplexitySearchApi({
       query: params.query,
-      apiKey: params.apiKey,
+      apiKey: params.apiKey ?? "",
       count: params.count,
       timeoutSeconds: params.timeoutSeconds,
       country: params.country,
@@ -1459,7 +1459,7 @@ async function runWebSearch(params: {
   if (params.provider === "grok") {
     const { content, citations, inlineCitations } = await runGrokSearch({
       query: params.query,
-      apiKey: params.apiKey,
+      apiKey: params.apiKey ?? "",
       model: params.grokModel ?? DEFAULT_GROK_MODEL,
       timeoutSeconds: params.timeoutSeconds,
       inlineCitations: params.grokInlineCitations ?? false,
@@ -1487,7 +1487,7 @@ async function runWebSearch(params: {
   if (params.provider === "kimi") {
     const { content, citations } = await runKimiSearch({
       query: params.query,
-      apiKey: params.apiKey,
+      apiKey: params.apiKey ?? "",
       baseUrl: params.kimiBaseUrl ?? DEFAULT_KIMI_BASE_URL,
       model: params.kimiModel ?? DEFAULT_KIMI_MODEL,
       timeoutSeconds: params.timeoutSeconds,
@@ -1514,7 +1514,7 @@ async function runWebSearch(params: {
   if (params.provider === "gemini") {
     const geminiResult = await runGeminiSearch({
       query: params.query,
-      apiKey: params.apiKey,
+      apiKey: params.apiKey ?? "",
       model: params.geminiModel ?? DEFAULT_GEMINI_MODEL,
       timeoutSeconds: params.timeoutSeconds,
     });
@@ -1593,7 +1593,9 @@ async function runWebSearch(params: {
     url.searchParams.set("freshness", `1970-01-01to${params.dateBefore}`);
   }
 
-  const mapped = await withTrustedWebSearchEndpoint(
+  const mapped = await withTrustedWebSearchEndpoint<
+    Array<{ title: string; url: string; description: string; published?: string; siteName?: string }>
+  >(
     {
       url: url.toString(),
       timeoutSeconds: params.timeoutSeconds,
@@ -1601,7 +1603,7 @@ async function runWebSearch(params: {
         method: "GET",
         headers: {
           Accept: "application/json",
-          "X-Subscription-Token": params.apiKey,
+          ...(params.apiKey ? { "X-Subscription-Token": params.apiKey } : {}),
         },
       },
     },
