@@ -26,6 +26,31 @@ type BunStatement = {
   all(...params: unknown[]): unknown[];
 };
 
+class BunStatementWrapper {
+  private _stmt: BunStatement;
+  constructor(stmt: BunStatement) {
+    this._stmt = stmt;
+  }
+  run(...params: unknown[]): unknown {
+    const converted = params.map((p) =>
+      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+    );
+    return this._stmt.run(...converted);
+  }
+  get(...params: unknown[]): unknown {
+    const converted = params.map((p) =>
+      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+    );
+    return this._stmt.get(...converted);
+  }
+  all(...params: unknown[]): unknown[] {
+    const converted = params.map((p) =>
+      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+    );
+    return this._stmt.all(...converted);
+  }
+}
+
 let _cachedModule: NodeSqliteModule | BunSqliteModule | null = null;
 let _sqliteType: "node" | "bun" | null = null;
 
@@ -69,7 +94,8 @@ class BunDatabaseSync {
     this._db = new Database(path, { readonly: options?.readOnly });
   }
   prepare(sql: string) {
-    return this._db.prepare(sql);
+    const stmt = this._db.prepare(sql);
+    return new BunStatementWrapper(stmt);
   }
   exec(sql: string) {
     return this._db.exec(sql);
