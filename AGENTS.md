@@ -258,3 +258,152 @@
   - `node --import tsx scripts/release-check.ts`
   - `pnpm release:check`
   - `pnpm test:install:smoke` or `OPENCLAW_INSTALL_SMOKE_SKIP_NONROOT=1 pnpm test:install:smoke` for non-root smoke path.
+
+---
+
+## 📝 开发笔记规范
+
+### 记录原则
+
+**核心准则**：问题出现频率和影响程度决定记录方式。
+
+| 问题类型 | 出现频率 | 影响程度 | 记录方式 |
+|-----------|----------|----------|----------|
+| 核心问题 | 高频（≥3次） | 高 | 升级为规范文档，写入 AGENTS.md 或独立规范文件 |
+| 重要细节 | 低频（1-2次） | 高 | 细节笔记，使用代码注释或 README 补充说明 |
+| 临时问题 | 偶发 | 中/低 | 快速笔记，Git commit message 或 Issue 追踪 |
+
+| 问题类型 | 出现频率 | 影响程度 | 记录位置 |
+|-----------|----------|----------|----------|
+| 核心问题 | 高频（≥3次） | 高 | `docs/vibe/notes.md` |
+| 重要细节 | 低频（1-2次） | 高 | 代码注释或 README.md |
+| 临时问题 | 偶发 | 中/低 | `docs/vibe/notes-details-YYYYMMDD.md`（每日记录） |
+
+### 核心/高频问题 → 升级为规范
+
+**触发条件**：
+- 同类问题出现过 3 次及以上
+- 影响架构设计、代码风格、开发流程
+- 团队成员反复询问相同问题
+
+**处理方式**：
+1. 首先记录到 `docs/vibe/notes.md`（按日期追加）
+2. 稳定后升级为规范：写入 AGENTS.md 或创建独立规范文件
+3. 规范格式必须包含：场景描述、解决方案、示例代码
+
+### 细节/低频问题 → 笔记记录
+
+**触发条件**：
+- 只出现 1-2 次，但影响重大
+- 技术细节、配置项、边界情况
+- 特定场景的解决方案
+
+**推荐位置**：
+- **代码内注释**：靠近问题发生处，使用块注释说明
+- **README.md**：项目特定的配置说明、注意事项
+- **代码文件开头**：文件级别的特殊说明
+
+**格式建议**：
+```typescript
+/**
+ * [DETAIL NOTE] 2026-03-08
+ *
+ * 问题：Bun 环境下 node:sqlite 不可用
+ * 场景：使用 Bun 运行时启动 gateway
+ * 解决：自动降级到 bun:sqlite，封装统一 API
+ * 影响：仅影响 Bun 运行时，Node.js 不受影响
+ */
+```
+
+### 临时追踪 → Git/Issue
+
+**推荐方式**：
+- 每日笔记记录到 `docs/vibe/notes-details-YYYYMMDD.md`
+- Git commit message 中说明 `TODO: ...`
+- 创建 Issue 标记 `technical-debt` 标签
+- 代码中标记 `// FIXME: ...` + 附 Issue URL
+
+**每日笔记格式**：
+```markdown
+# 问题修复笔记
+
+## 日期：YYYY-MM-DD
+
+---
+
+## 1. [问题标题]
+
+### 问题描述
+- **文件**: `src/xxx.ts`
+- **现象**: [描述]
+- **原因**: [分析]
+
+### 解决方案
+- [步骤1]
+- [步骤2]
+
+---
+```
+
+### 更新维护
+
+- **每季度 review**：检查笔记中的内容是否需要升级为规范
+- **删除过期笔记**：已解决或已规范化的内容从笔记中移除
+- **规范化流程**：将稳定、成熟的规范从笔记迁移到正式文档
+
+---
+
+## 📖 笔记查阅规范
+
+### 查阅触发条件（问题驱动）
+
+**必须查阅笔记的场景**：
+
+| 触发场景 | 查阅方法 |
+|----------|----------|
+| 遇到报错/异常 | `grep -ri -E "error\|报错关键词" docs/vibe/` |
+| 使用陌生 API/库 | `grep -ri "library_name" docs/vibe/` |
+| 修改高频模块 | `grep -ri -E "module\|模块关键词" docs/vibe/notes.md` |
+| 跨模块修改 | 管道过滤：`grep -ri "module1" docs/vibe/\| grep -i "module2"` |
+
+**不需要查阅的场景**：
+- 简单的单文件修改
+- 明确的配置调整（无逻辑变更）
+- 用户明确指定了方案
+
+### 查阅命令模板
+
+```bash
+# 单关键词（忽略大小写）
+grep -ri "keyword" docs/vibe/
+
+# 多关键词 OR 查询
+grep -ri -E "keyword1|keyword2|关键词3" docs/vibe/
+
+# 多关键词 AND 查询（管道过滤）
+grep -ri "keyword1" docs/vibe/ | grep -i "keyword2"
+
+# 显示上下文（推荐）
+grep -ri -C 3 "keyword" docs/vibe/
+
+# 仅搜索核心笔记
+grep -ri "keyword" docs/vibe/notes.md
+```
+
+### 常见关键词映射表
+
+| 概念 | 关键词组合 |
+|------|-----------|
+| 数据库 | `sqlite\|database\|bun:sqlite\|node:sqlite` |
+| 搜索 | `web-search\|exa\|brave\|perplexity` |
+| 配置 | `config\|schema\|配置` |
+| 测试 | `test\|测试\|vitest` |
+| 发布 | `release\|publish\|npm\|发布` |
+
+---
+
+## 📦 开发笔记归档配置
+
+- **归档周期**: 7 天
+- **归档模式**: 自动
+- **配置来源**: 用户偏好设置 (2026-03-08)
