@@ -33,19 +33,19 @@ class BunStatementWrapper {
   }
   run(...params: unknown[]): unknown {
     const converted = params.map((p) =>
-      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+      Buffer.isBuffer(p) ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength) : p,
     );
     return this._stmt.run(...converted);
   }
   get(...params: unknown[]): unknown {
     const converted = params.map((p) =>
-      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+      Buffer.isBuffer(p) ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength) : p,
     );
     return this._stmt.get(...converted);
   }
   all(...params: unknown[]): unknown[] {
     const converted = params.map((p) =>
-      Buffer.isBuffer(p) ? new Uint8Array(p) : p,
+      Buffer.isBuffer(p) ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength) : p,
     );
     return this._stmt.all(...converted);
   }
@@ -91,7 +91,11 @@ class BunDatabaseSync {
   private _db: BunDatabase;
   constructor(path: string, options?: DatabaseSyncOptions) {
     const { Database } = require("bun:sqlite") as BunSqliteModule;
-    this._db = new Database(path, { readonly: options?.readOnly });
+    // bun:sqlite uses 'create' option, not 'allowExtension'
+    this._db = new Database(path, {
+      readonly: options?.readOnly,
+      create: options?.readOnly ? false : true,
+    });
   }
   prepare(sql: string) {
     const stmt = this._db.prepare(sql);
