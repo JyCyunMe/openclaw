@@ -21,7 +21,7 @@ import {
   writeCache,
 } from "./web-shared.js";
 
-const SEARCH_PROVIDERS = ["brave", "perplexity", "grok", "gemini", "kimi"] as const;
+const SEARCH_PROVIDERS = ["brave", "perplexity", "grok", "gemini", "kimi", "exa"] as const;
 const DEFAULT_SEARCH_COUNT = 5;
 const MAX_SEARCH_COUNT = 10;
 
@@ -36,6 +36,9 @@ const KIMI_WEB_SEARCH_TOOL = {
   type: "builtin_function",
   function: { name: "$web_search" },
 } as const;
+
+const EXA_MCP_ENDPOINT = "https://mcp.exa.ai/mcp";
+const DEFAULT_EXA_NUM_RESULTS = 8;
 
 const SEARCH_CACHE = new Map<string, CacheEntry<Record<string, unknown>>>();
 const BRAVE_FRESHNESS_SHORTCUTS = new Set(["pd", "pw", "pm", "py"]);
@@ -263,6 +266,14 @@ type KimiConfig = {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
+};
+
+type ExaConfig = {
+  baseUrl?: string;
+  numResults?: number;
+  livecrawl?: "fallback" | "preferred";
+  type?: "auto" | "fast" | "deep";
+  contextMaxCharacters?: number;
 };
 
 type GrokSearchResponse = {
@@ -499,6 +510,9 @@ function resolveSearchProvider(search?: WebSearchConfig): (typeof SEARCH_PROVIDE
   if (raw === "kimi") {
     return "kimi";
   }
+  if (raw === "exa") {
+    return "exa";
+  }
   if (raw === "brave") {
     return "brave";
   }
@@ -545,9 +559,14 @@ function resolveSearchProvider(search?: WebSearchConfig): (typeof SEARCH_PROVIDE
       );
       return "kimi";
     }
+    // 6. Exa (no API key required - fallback)
+    logVerbose(
+      'web_search: no provider configured and no API keys found, using "exa" as default (no API key required)',
+    );
+    return "exa";
   }
 
-  return "perplexity";
+  return "exa";
 }
 
 function resolvePerplexityConfig(search?: WebSearchConfig): PerplexityConfig {
@@ -646,6 +665,41 @@ function resolveKimiBaseUrl(kimi?: KimiConfig): string {
   const fromConfig =
     kimi && "baseUrl" in kimi && typeof kimi.baseUrl === "string" ? kimi.baseUrl.trim() : "";
   return fromConfig || DEFAULT_KIMI_BASE_URL;
+}
+
+function resolveExaConfig(search?: WebSearchConfig): ExaConfig {
+  if (!search || typeof search !== "object") {
+    return {};
+  }
+  const exa = "exa" in search ? search.exa : undefined;
+  if (!exa || typeof exa !== "object") {
+    return {};
+  }
+  return exa as ExaConfig;
+}
+
+function resolveExaBaseUrl(exa?: ExaConfig): string {
+  const fromConfig =
+    exa && "baseUrl" in exa && typeof exa.baseUrl === "string" ? exa.baseUrl.trim() : "";
+  return fromConfig || EXA_MCP_ENDPOINT;
+}
+
+function resolveExaNumResults(exa?: ExaConfig): number {
+  const fromConfig =
+    exa && "numResults" in exa && typeof exa.numResults === "number" ? exa.numResults : DEFAULT_EXA_NUM_RESULTS;
+  return Math.max(1, Math.min(20, fromConfig));
+}
+
+function resolveExaLivecrawl(exa?: ExaConfig): "fallback" | "preferred" {
+  return exa?.livecrawl ?? "fallback";
+}
+
+function resolveExaType(exa?: ExaConfig): "auto" | "fast" | "deep" {
+  return exa?.type ?? "auto";
+}
+
+function resolveExaContextMaxCharacters(exa?: ExaConfig): number | undefined {
+  return exa?.contextMaxCharacters;
 }
 
 function resolveGeminiConfig(search?: WebSearchConfig): GeminiConfig {
@@ -1213,10 +1267,118 @@ async function runKimiSearch(params: {
   };
 }
 
+type ExaMcpRequest = {
+  jsonrpc: string;
+  id: number;
+  method: string;
+  params: {
+    name: string;
+    arguments: {
+      query: string;
+      numResults?: number;
+      livecrawl?: "fallback" | "preferred";
+      type?: "auto" | "fast" | "deep";
+      contextMaxCharacters?: number;
+    };
+  };
+};
+
+type ExaMcpResponse = {
+  jsonrpc: string;
+  result?: {
+    content?: Array<{
+      type: string;
+      text: string;
+    }>;
+  };
+  error?: {
+    code?: number;
+    message?: string;
+  };
+};
+
+async function runExaSearch(params: {
+  query: string;
+  baseUrl: string;
+  numResults: number;
+  livecrawl: "fallback" | "preferred";
+  type: "auto" | "fast" | "deep";
+  contextMaxCharacters?: number;
+  timeoutSeconds: number;
+}): Promise<{ content: string }> {
+  const request: ExaMcpRequest = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: {
+      name: "web_search_exa",
+      arguments: {
+        query: params.query,
+        numResults: params.numResults,
+        livecrawl: params.livecrawl,
+        type: params.type,
+        ...(params.contextMaxCharacters ? { contextMaxCharacters: params.contextMaxCharacters } : {}),
+      },
+    },
+  };
+
+  return withTrustedWebSearchEndpoint(
+    {
+      url: params.baseUrl,
+      timeoutSeconds: params.timeoutSeconds,
+      init: {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(request),
+      },
+    },
+    async (res) => {
+      if (!res.ok) {
+        const detailResult = await readResponseText(res, { maxBytes: 64_000 });
+        throw new Error(`Exa MCP error (${res.status}): ${detailResult.text || res.statusText}`);
+      }
+
+      const responseText = await res.text();
+      const lines = responseText.split("\n");
+      
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data: ExaMcpResponse = JSON.parse(line.substring(6));
+            if (data.error) {
+              throw new Error(`Exa MCP error: ${data.error.message || JSON.stringify(data.error)}`);
+            }
+            if (data.result?.content?.[0]?.text) {
+              return { content: data.result.content[0].text };
+            }
+          } catch {
+          }
+        }
+      }
+
+      try {
+        const data: ExaMcpResponse = JSON.parse(responseText);
+        if (data.error) {
+          throw new Error(`Exa MCP error: ${data.error.message || JSON.stringify(data.error)}`);
+        }
+        if (data.result?.content?.[0]?.text) {
+          return { content: data.result.content[0].text };
+        }
+      } catch {
+      }
+
+      return { content: "No search results found." };
+    },
+  );
+}
+
 async function runWebSearch(params: {
   query: string;
   count: number;
-  apiKey: string;
+  apiKey?: string;
   timeoutSeconds: number;
   cacheTtlMs: number;
   provider: (typeof SEARCH_PROVIDERS)[number];
@@ -1235,6 +1397,11 @@ async function runWebSearch(params: {
   geminiModel?: string;
   kimiBaseUrl?: string;
   kimiModel?: string;
+  exaBaseUrl?: string;
+  exaNumResults?: number;
+  exaLivecrawl?: "fallback" | "preferred";
+  exaType?: "auto" | "fast" | "deep";
+  exaContextMaxCharacters?: number;
 }): Promise<Record<string, unknown>> {
   const providerSpecificKey =
     params.provider === "grok"
@@ -1243,7 +1410,9 @@ async function runWebSearch(params: {
         ? (params.geminiModel ?? DEFAULT_GEMINI_MODEL)
         : params.provider === "kimi"
           ? `${params.kimiBaseUrl ?? DEFAULT_KIMI_BASE_URL}:${params.kimiModel ?? DEFAULT_KIMI_MODEL}`
-          : "";
+          : params.provider === "exa"
+            ? `${params.exaBaseUrl ?? EXA_MCP_ENDPOINT}:${params.exaNumResults ?? DEFAULT_EXA_NUM_RESULTS}:${params.exaLivecrawl ?? "fallback"}:${params.exaType ?? "auto"}`
+            : "";
   const cacheKey = normalizeCacheKey(
     `${params.provider}:${params.query}:${params.count}:${params.country || "default"}:${params.search_lang || params.language || "default"}:${params.ui_lang || "default"}:${params.freshness || "default"}:${params.dateAfter || "default"}:${params.dateBefore || "default"}:${params.searchDomainFilter?.join(",") || "default"}:${params.maxTokens || "default"}:${params.maxTokensPerPage || "default"}:${providerSpecificKey}`,
   );
@@ -1354,7 +1523,7 @@ async function runWebSearch(params: {
       query: params.query,
       provider: params.provider,
       model: params.geminiModel ?? DEFAULT_GEMINI_MODEL,
-      tookMs: Date.now() - start, // Includes redirect URL resolution time
+      tookMs: Date.now() - start,
       externalContent: {
         untrusted: true,
         source: "web_search",
@@ -1363,6 +1532,33 @@ async function runWebSearch(params: {
       },
       content: wrapWebContent(geminiResult.content),
       citations: geminiResult.citations,
+    };
+    writeCache(SEARCH_CACHE, cacheKey, payload, params.cacheTtlMs);
+    return payload;
+  }
+
+  if (params.provider === "exa") {
+    const { content } = await runExaSearch({
+      query: params.query,
+      baseUrl: params.exaBaseUrl ?? EXA_MCP_ENDPOINT,
+      numResults: params.exaNumResults ?? DEFAULT_EXA_NUM_RESULTS,
+      livecrawl: params.exaLivecrawl ?? "fallback",
+      type: params.exaType ?? "auto",
+      contextMaxCharacters: params.exaContextMaxCharacters,
+      timeoutSeconds: params.timeoutSeconds,
+    });
+
+    const payload = {
+      query: params.query,
+      provider: params.provider,
+      tookMs: Date.now() - start,
+      externalContent: {
+        untrusted: true,
+        source: "web_search",
+        provider: params.provider,
+        wrapped: true,
+      },
+      content: wrapWebContent(content),
     };
     writeCache(SEARCH_CACHE, cacheKey, payload, params.cacheTtlMs);
     return payload;
@@ -1465,6 +1661,7 @@ export function createWebSearchTool(options?: {
   const grokConfig = resolveGrokConfig(search);
   const geminiConfig = resolveGeminiConfig(search);
   const kimiConfig = resolveKimiConfig(search);
+  const exaConfig = resolveExaConfig(search);
 
   const description =
     provider === "perplexity"
@@ -1475,7 +1672,9 @@ export function createWebSearchTool(options?: {
           ? "Search the web using Kimi by Moonshot. Returns AI-synthesized answers with citations from native $web_search."
           : provider === "gemini"
             ? "Search the web using Gemini with Google Search grounding. Returns AI-synthesized answers with citations from Google Search."
-            : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
+            : provider === "exa"
+              ? "Search the web using Exa AI. Returns AI-optimized search results with high-quality content extraction. No API key required."
+              : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
 
   return {
     label: "Web Search",
@@ -1494,9 +1693,11 @@ export function createWebSearchTool(options?: {
               ? resolveKimiApiKey(kimiConfig)
               : provider === "gemini"
                 ? resolveGeminiApiKey(geminiConfig)
-                : resolveSearchApiKey(search);
+                : provider === "exa"
+                  ? "no-key-required"
+                  : resolveSearchApiKey(search);
 
-      if (!apiKey) {
+      if (!apiKey && provider !== "exa") {
         return jsonResult(missingSearchKeyPayload(provider));
       }
       const params = args as Record<string, unknown>;
@@ -1660,6 +1861,11 @@ export function createWebSearchTool(options?: {
         geminiModel: resolveGeminiModel(geminiConfig),
         kimiBaseUrl: resolveKimiBaseUrl(kimiConfig),
         kimiModel: resolveKimiModel(kimiConfig),
+        exaBaseUrl: resolveExaBaseUrl(exaConfig),
+        exaNumResults: resolveExaNumResults(exaConfig),
+        exaLivecrawl: resolveExaLivecrawl(exaConfig),
+        exaType: resolveExaType(exaConfig),
+        exaContextMaxCharacters: resolveExaContextMaxCharacters(exaConfig),
       });
       return jsonResult(result);
     },
@@ -1684,4 +1890,9 @@ export const __testing = {
   resolveKimiBaseUrl,
   extractKimiCitations,
   resolveRedirectUrl: resolveCitationRedirectUrl,
+  resolveExaConfig,
+  resolveExaBaseUrl,
+  resolveExaNumResults,
+  resolveExaLivecrawl,
+  resolveExaType,
 } as const;

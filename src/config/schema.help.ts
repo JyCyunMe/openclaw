@@ -645,7 +645,7 @@ export const FIELD_HELP: Record<string, string> = {
   "tools.message.broadcast.enabled": "Enable broadcast action (default: true).",
   "tools.web.search.enabled": "Enable the web_search tool (requires a provider API key).",
   "tools.web.search.provider":
-    'Search provider ("brave", "perplexity", "grok", "gemini", or "kimi"). Auto-detected from available API keys if omitted.',
+    'Search provider ("brave", "perplexity", "grok", "gemini", "kimi", or "exa"). Auto-detected from available API keys if omitted. Exa is used as default when no API keys are configured (no API key required).',
   "tools.web.search.apiKey": "Brave Search API key (fallback: BRAVE_API_KEY env var).",
   "tools.web.search.maxResults": "Default number of results to return (1-10).",
   "tools.web.search.timeoutSeconds": "Timeout in seconds for web_search requests.",
@@ -660,6 +660,14 @@ export const FIELD_HELP: Record<string, string> = {
   "tools.web.search.kimi.baseUrl":
     'Kimi base URL override (default: "https://api.moonshot.ai/v1").',
   "tools.web.search.kimi.model": 'Kimi model override (default: "moonshot-v1-128k").',
+  "tools.web.search.exa.baseUrl": 'Exa MCP base URL (default: "https://mcp.exa.ai"). No API key required.',
+  "tools.web.search.exa.numResults": "Number of search results to return (default: 8, max: 20).",
+  "tools.web.search.exa.livecrawl":
+    'Live crawl mode: "fallback" uses cached content with live crawl as backup (default), "preferred" prioritizes live crawling.',
+  "tools.web.search.exa.type":
+    'Search type: "auto" balanced (default), "fast" quick results, "deep" comprehensive search.',
+  "tools.web.search.exa.contextMaxCharacters":
+    "Maximum characters for context string optimized for LLMs (default: 10000).",
   "tools.web.search.perplexity.apiKey":
     "Perplexity or OpenRouter API key (fallback: PERPLEXITY_API_KEY or OPENROUTER_API_KEY env var).",
   "tools.web.search.perplexity.baseUrl":

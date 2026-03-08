@@ -441,8 +441,8 @@ export type ToolsConfig = {
     search?: {
       /** Enable web search tool (default: true when API key is present). */
       enabled?: boolean;
-      /** Search provider ("brave", "perplexity", "grok", "gemini", or "kimi"). */
-      provider?: "brave" | "perplexity" | "grok" | "gemini" | "kimi";
+      /** Search provider ("brave", "perplexity", "grok", "gemini", "kimi", or "exa"). */
+      provider?: "brave" | "perplexity" | "grok" | "gemini" | "kimi" | "exa";
       /** Brave Search API key (optional; defaults to BRAVE_API_KEY env var). */
       apiKey?: SecretInput;
       /** Default search results count (1-10). */
@@ -484,6 +484,19 @@ export type ToolsConfig = {
         baseUrl?: string;
         /** Model to use (defaults to "moonshot-v1-128k"). */
         model?: string;
+      };
+      /** Exa-specific configuration (used when provider="exa"). No API key required. */
+      exa?: {
+        /** Exa MCP base URL (defaults to "https://mcp.exa.ai"). */
+        baseUrl?: string;
+        /** Number of results to return (default: 8). */
+        numResults?: number;
+        /** Live crawl mode - "fallback": use live crawling as backup, "preferred": prioritize live crawling (default: "fallback"). */
+        livecrawl?: "fallback" | "preferred";
+        /** Search type - "auto": balanced (default), "fast": quick results, "deep": comprehensive search. */
+        type?: "auto" | "fast" | "deep";
+        /** Maximum characters for context string optimized for LLMs (default: 10000). */
+        contextMaxCharacters?: number;
       };
     };
     fetch?: {
