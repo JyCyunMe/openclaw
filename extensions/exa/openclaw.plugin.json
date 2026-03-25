@@ -1,0 +1,33 @@
+{
+  "id": "exa",
+  "uiHints": {
+    "webSearch.apiKey": {
+      "label": "Exa API Key",
+      "help": "Exa API key for web search.",
+      "sensitive": true,
+      "placeholder": "exa_..."
+    },
+    "webSearch.baseUrl": {
+      "label": "Exa Base URL",
+      "help": "Custom Exa MCP endpoint (default: https://mcp.exa.ai/mcp)."
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "webSearch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "apiKey": {
+            "type": ["string", "object"]
+          },
+          "baseUrl": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
