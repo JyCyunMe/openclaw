@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { PluginLogger } from "openclaw/plugin-sdk/diffs";
+import type { PluginLogger } from "../api.js";
 import type { DiffArtifactStore } from "./store.js";
 import { DIFF_ARTIFACT_ID_PATTERN, DIFF_ARTIFACT_TOKEN_PATTERN } from "./types.js";
 import { VIEWER_ASSET_PREFIX, getServedViewerAsset } from "./viewer-assets.js";
@@ -176,12 +176,13 @@ function isLoopbackClientIp(clientIp: string): boolean {
 }
 
 function hasProxyForwardingHints(req: IncomingMessage): boolean {
+  const headers = req.headers ?? {};
   return Boolean(
-    req.headers["x-forwarded-for"] ||
-    req.headers["x-real-ip"] ||
-    req.headers.forwarded ||
-    req.headers["x-forwarded-host"] ||
-    req.headers["x-forwarded-proto"],
+    headers["x-forwarded-for"] ||
+    headers["x-real-ip"] ||
+    headers.forwarded ||
+    headers["x-forwarded-host"] ||
+    headers["x-forwarded-proto"],
   );
 }
 
