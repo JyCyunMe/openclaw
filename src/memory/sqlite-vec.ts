@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { getSqliteType } from "./sqlite.js";
 
 export async function loadSqliteVecExtension(params: {
   db: DatabaseSync;
@@ -9,11 +10,17 @@ export async function loadSqliteVecExtension(params: {
     const resolvedPath = params.extensionPath?.trim() ? params.extensionPath.trim() : undefined;
     const extensionPath = resolvedPath ?? sqliteVec.getLoadablePath();
 
-    params.db.enableLoadExtension(true);
-    if (resolvedPath) {
-      params.db.loadExtension(extensionPath);
+    const sqliteType = getSqliteType();
+
+    if (sqliteType === "bun") {
+      sqliteVec.load(params.db as unknown as import("bun:sqlite").Database);
     } else {
-      sqliteVec.load(params.db);
+      params.db.enableLoadExtension(true);
+      if (resolvedPath) {
+        params.db.loadExtension(extensionPath);
+      } else {
+        sqliteVec.load(params.db);
+      }
     }
 
     return { ok: true, extensionPath };
