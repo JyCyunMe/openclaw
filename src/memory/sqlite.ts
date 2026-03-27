@@ -7,10 +7,7 @@ type NodeSqliteModule = typeof import("node:sqlite");
 type NodeDatabaseSync = import("node:sqlite").DatabaseSync;
 
 type BunSqliteModule = {
-  Database: new (
-    path: string,
-    options?: { readonly?: boolean; create?: boolean },
-  ) => BunDatabase;
+  Database: new (path: string, options?: { readonly?: boolean; create?: boolean }) => BunDatabase;
 };
 
 type BunDatabase = {
@@ -94,7 +91,7 @@ class BunDatabaseSync {
     // bun:sqlite uses 'create' option, not 'allowExtension'
     this._db = new Database(path, {
       readonly: options?.readOnly,
-      create: options?.readOnly ? false : true,
+      create: !options?.readOnly,
     });
   }
   prepare(sql: string) {
@@ -114,6 +111,11 @@ class BunDatabaseSync {
     // bun:sqlite loads extensions directly without enabling
   }
 }
+
+// Export unified DatabaseSync type that hides the Node/Bun implementation detail
+export type DatabaseSync = NodeDatabaseSync | BunDatabaseSync;
+
+export type { BunDatabaseSync };
 
 function createBunSqliteModule(): { DatabaseSync: typeof BunDatabaseSync } {
   return { DatabaseSync: BunDatabaseSync };

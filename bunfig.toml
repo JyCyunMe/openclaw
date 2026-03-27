@@ -1,0 +1,39 @@
+# Bun Configuration for OpenClaw
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# 锁文件配置
+lockfile = "bun.lock"
+# 精确安装版本
+exact = true
+# 不安装可选依赖（减少包体积）
+optional = false
+# 使用 bun 的缓存
+cache = true
+
+[run]
+# 启用热重载（开发模式）
+hot = true
+# 加载优化
+preload = ["./dist/entry.js"]
+# Shell 类型
+# Shell 类型（Bun 只支持 'bun' 或 'system'，默认使用系统 shell）
+
+[test]
+# 测试覆盖率
+coverage = true
+# 预加载测试设置
+preload = ["./vitest.setup.ts"]
+
+# 性能优化
+[optimize]
+# 启用压缩
+minify = true
+# 目标环境
+target = "node"
+# 启用调试信息（开发时可开启）
+sourcemap = "inline"  # 生产环境改为 "external" 或 false
+
+# 锁定 Bun 版本（确保一致性）
+[lockfile]
+print = "yarn"

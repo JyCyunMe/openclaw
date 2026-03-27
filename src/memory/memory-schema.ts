@@ -1,5 +1,4 @@
-import type { DatabaseSync } from "node:sqlite";
-
+import type { DatabaseSync } from "./sqlite.js";
 export function ensureMemoryIndexSchema(params: {
   db: DatabaseSync;
   embeddingCacheTable: string;

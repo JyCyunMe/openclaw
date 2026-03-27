@@ -1,0 +1,8 @@
+# Bun 构建忽略文件
+# 避免打包不兼容的依赖
+
+node-llama-cpp
+ffmpeg-static
+electron
+chromium-bidi
+playwright-core

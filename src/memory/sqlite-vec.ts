@@ -1,4 +1,4 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync } from "./sqlite.js";
 import { getSqliteType } from "./sqlite.js";
 
 export async function loadSqliteVecExtension(params: {

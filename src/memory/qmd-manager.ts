@@ -12,14 +12,22 @@ import {
   materializeWindowsSpawnProgram,
   resolveWindowsSpawnProgram,
 } from "../plugin-sdk/windows-spawn.js";
+import type {
+  ResolvedMemoryBackendConfig,
+  ResolvedQmdConfig,
+  ResolvedQmdMcporterConfig,
+} from "./backend-config.js";
 import { isFileMissingError, statRegularFile } from "./fs-utils.js";
+import { parseQmdQueryJson, type QmdQueryResult } from "./qmd-query-parser.js";
 import { deriveQmdScopeChannel, deriveQmdScopeChatType, isQmdScopeAllowed } from "./qmd-scope.js";
+import { extractKeywords } from "./query-expansion.js";
 import {
   listSessionFilesForAgent,
   buildSessionEntry,
   type SessionFileEntry,
 } from "./session-files.js";
 import { requireNodeSqlite } from "./sqlite.js";
+import type { DatabaseSync } from "./sqlite.js";
 import type {
   MemoryEmbeddingProbeResult,
   MemoryProviderStatus,
@@ -28,15 +36,6 @@ import type {
   MemorySource,
   MemorySyncProgressUpdate,
 } from "./types.js";
-
-type SqliteDatabase = import("node:sqlite").DatabaseSync;
-import type {
-  ResolvedMemoryBackendConfig,
-  ResolvedQmdConfig,
-  ResolvedQmdMcporterConfig,
-} from "./backend-config.js";
-import { parseQmdQueryJson, type QmdQueryResult } from "./qmd-query-parser.js";
-import { extractKeywords } from "./query-expansion.js";
 
 const log = createSubsystemLogger("memory");
 
@@ -220,7 +219,7 @@ export class QmdMemoryManager implements MemorySearchManager {
   private queuedForcedUpdate: Promise<void> | null = null;
   private queuedForcedRuns = 0;
   private closed = false;
-  private db: SqliteDatabase | null = null;
+  private db: DatabaseSync | null = null;
   private lastUpdateAt: number | null = null;
   private lastEmbedAt: number | null = null;
   private embedBackoffUntil: number | null = null;
@@ -1550,15 +1549,16 @@ export class QmdMemoryManager implements MemorySearchManager {
     }
   }
 
-  private ensureDb(): SqliteDatabase {
+  private ensureDb(): DatabaseSync {
     if (this.db) {
       return this.db;
     }
     const { DatabaseSync } = requireNodeSqlite();
-    this.db = new DatabaseSync(this.indexPath, { readOnly: true });
+    const db = new DatabaseSync(this.indexPath, { readOnly: true });
+    this.db = db;
     // Keep QMD recall responsive when the updater holds a write lock.
-    this.db.exec("PRAGMA busy_timeout = 1");
-    return this.db;
+    db.exec("PRAGMA busy_timeout = 1");
+    return db;
   }
 
   private async exportSessions(): Promise<void> {
